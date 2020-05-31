@@ -3,6 +3,7 @@ package filter
 import (
 	"bytes"
 	"fmt"
+	"go.uber.org/zap"
 	"io"
 	"log"
 	"net/http"
@@ -34,6 +35,8 @@ type Middleware struct {
 
 	compiledContentTypeRegex *regexp.Regexp
 	compiledSearchRegex      *regexp.Regexp
+
+	logger *zap.Logger
 }
 
 // CaddyModule returns the Caddy module information.
@@ -45,8 +48,12 @@ func (Middleware) CaddyModule() caddy.ModuleInfo {
 }
 
 // Provision implements caddy.Provisioner.
-func (m *Middleware) Provision(_ caddy.Context) error {
+func (m *Middleware) Provision(ctx caddy.Context) error {
 	var err error
+	m.logger = ctx.Logger(m)
+	m.logger.Debug(fmt.Sprintf("ContentType: %s. SearchPattern: %s",
+		m.ContentType,
+		m.SearchPattern))
 	if m.compiledContentTypeRegex, err = regexp.Compile(m.ContentType); err != nil {
 		return fmt.Errorf("invalid content_type: %w", err)
 	}
