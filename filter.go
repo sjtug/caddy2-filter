@@ -99,9 +99,6 @@ func (csr *CappedSizeRecorder) Header() http.Header {
 }
 
 func (csr *CappedSizeRecorder) FlushHeaders() {
-	if !csr.overflowed {
-		log.Fatal("onOverflow called when overflowed is false")
-	}
 	for k, vs := range csr.recorder.Header() {
 		for _, v := range vs {
 			csr.w.Header().Add(k, v)
@@ -112,6 +109,9 @@ func (csr *CappedSizeRecorder) FlushHeaders() {
 
 // Flush contents to writer
 func (csr *CappedSizeRecorder) Flush() (int64, error) {
+	if !csr.overflowed {
+		log.Fatal("Flush called when overflowed is false")
+	}
 	csr.FlushHeaders()
 	return io.Copy(csr.w, csr.recorder.Body)
 }
