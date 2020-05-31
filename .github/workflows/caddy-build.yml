@@ -15,7 +15,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.13.x, 1.14.x]
+        go-version: [1.14.x]
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     steps:
@@ -26,4 +26,4 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Build and test
-      run: go run github.com/caddyserver/xcaddy/cmd/xcaddy list-module
+      run: go run github.com/caddyserver/xcaddy/cmd/xcaddy list-modules
