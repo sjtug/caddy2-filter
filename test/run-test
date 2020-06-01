@@ -8,23 +8,25 @@ cleanup() {
 
 trap cleanup EXIT
 
-xcaddy list-modules
+readonly XCADDY="go run github.com/caddyserver/xcaddy/cmd/xcaddy"
 
-xcaddy run -config test/Caddyfile.1&
+$XCADDY list-modules
+
+$XCADDY run -config test/Caddyfile.1&
 pid="$!"
 sleep 7
 curl -v http://localhost:2015/ > output1
 diff output1 test/test-1.ref
 cleanup
 
-xcaddy run -config test/Caddyfile.2&
+$XCADDY run -config test/Caddyfile.2&
 pid="$!"
 sleep 7
 curl -v http://localhost:2015/ > output2
 diff output2 test/test-2.ref
 cleanup
 
-xcaddy run -config test/Caddyfile.3&
+$XCADDY run -config test/Caddyfile.3&
 pid="$!"
 sleep 7
 curl -v http://localhost:2015/ > output3_1
