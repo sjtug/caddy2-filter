@@ -14,8 +14,13 @@ Only the listed fields are supported.
 Caddyfile:
 ```
 filter {
+    # Only process URL matching this regex
+    path <optional, regexp pattern, default: .*>
+    # Don't process response body larger than this size
+    max_size <optional, int, default: 2097152>
     search_pattern <regexp pattern>
     replacement <replacement string>
+    # Only process content_type matching this regex
     content_type <regexp pattern>
 }
 ```
@@ -24,12 +29,10 @@ JSON config (under `apps › http › servers › routes › handle`)
 ```
 {
     "handler": "filter",
+    "max_size": <int>,
+    "path": "<regexp>",
     "search_pattern": "<regexp>",
     "replacement: "<string>",
     "content_type": "<regexp>"
 }
 ```
-
-## Limitation
-
-For response body > 2M, this plugin won't handle it to avoid memory exhaustion from buffering.

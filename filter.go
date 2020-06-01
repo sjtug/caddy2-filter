@@ -9,14 +9,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strconv"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
-
-const MaxSizeToFilter = 2 * 1024 * 1024
 
 func init() {
 	caddy.RegisterModule(Middleware{})
@@ -33,8 +32,12 @@ type Middleware struct {
 	// A string specifying the string used to replace matches
 	Replacement string `json:"replacement"`
 
+	MaxSize int    `json:"max_size"`
+	Path    string `json:"path"`
+
 	compiledContentTypeRegex *regexp.Regexp
 	compiledSearchRegex      *regexp.Regexp
+	compiledPathRegex        *regexp.Regexp
 
 	logger *zap.Logger
 }
@@ -47,6 +50,8 @@ func (Middleware) CaddyModule() caddy.ModuleInfo {
 	}
 }
 
+const DefaultMaxSize = 2 * 1024 * 1024
+
 // Provision implements caddy.Provisioner.
 func (m *Middleware) Provision(ctx caddy.Context) error {
 	var err error
@@ -54,11 +59,20 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.logger.Debug(fmt.Sprintf("ContentType: %s. SearchPattern: %s",
 		m.ContentType,
 		m.SearchPattern))
+	if m.MaxSize == 0 {
+		m.MaxSize = DefaultMaxSize
+	}
+	if m.Path == "" {
+		m.Path = ".*"
+	}
 	if m.compiledContentTypeRegex, err = regexp.Compile(m.ContentType); err != nil {
 		return fmt.Errorf("invalid content_type: %w", err)
 	}
 	if m.compiledSearchRegex, err = regexp.Compile(m.SearchPattern); err != nil {
 		return fmt.Errorf("invalid search_pattern: %w", err)
+	}
+	if m.compiledPathRegex, err = regexp.Compile(m.Path); err != nil {
+		return fmt.Errorf("invalid path: %w", err)
 	}
 	return nil
 }
@@ -146,7 +160,10 @@ func (csr *CappedSizeRecorder) WriteHeader(statusCode int) {
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	csr := NewCappedSizeRecorder(MaxSizeToFilter, w)
+	if !m.compiledPathRegex.MatchString(r.URL.Path) {
+		return next.ServeHTTP(w, r)
+	}
+	csr := NewCappedSizeRecorder(m.MaxSize, w)
 	nextErr := next.ServeHTTP(csr, r)
 	if csr.Overflowed() {
 		return nextErr
@@ -188,6 +205,14 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			m.SearchPattern = value
 		case "replacement":
 			m.Replacement = value
+		case "max_size":
+			val, err := strconv.Atoi(value)
+			if err != nil {
+				d.Err(fmt.Sprintf("max_size error: %s", err.Error()))
+			}
+			m.MaxSize = val
+		case "path":
+			m.Path = value
 		default:
 			return d.Err(fmt.Sprintf("invalid key for filter directive: %s", key))
 		}
