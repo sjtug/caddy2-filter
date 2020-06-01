@@ -1,0 +1,13 @@
+{
+    debug
+    order filter first
+}
+http://localhost:2015 {
+    filter {
+        content_type .*
+        search_pattern Hello
+        replacement blah
+        max_size 20
+    }
+    respond "blahblahblahblahblahblahblahblah Hello!"
+}

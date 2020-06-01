@@ -1,0 +1,34 @@
+#!/bin/bash
+
+set -eo pipefail
+
+cleanup() {
+    pkill caddy || true
+}
+
+trap cleanup EXIT
+
+xcaddy list-modules
+
+xcaddy run -config test/Caddyfile.1&
+pid="$!"
+sleep 7
+curl -v http://localhost:2015/ > output1
+diff output1 test/test-1.ref
+cleanup
+
+xcaddy run -config test/Caddyfile.2&
+pid="$!"
+sleep 7
+curl -v http://localhost:2015/ > output2
+diff output2 test/test-2.ref
+cleanup
+
+xcaddy run -config test/Caddyfile.3&
+pid="$!"
+sleep 7
+curl -v http://localhost:2015/ > output3_1
+diff output3_1 test/test-3-1.ref
+curl -v http://localhost:2015/test > output3_2
+diff output3_2 test/test-3-2.ref
+cleanup

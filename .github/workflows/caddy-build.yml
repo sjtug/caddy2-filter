@@ -26,4 +26,4 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Build and test
-      run: go run github.com/caddyserver/xcaddy/cmd/xcaddy list-modules
+      run: test/run-test
