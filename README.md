@@ -13,6 +13,11 @@ Only the listed fields are supported.
 
 Caddyfile:
 ```
+# Add this block in top-level settings:
+{
+	order filter after encode
+}
+
 filter {
     # Only process URL matching this regex
     path <optional, regexp pattern, default: .*>
