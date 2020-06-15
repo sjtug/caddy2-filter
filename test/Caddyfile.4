@@ -1,0 +1,15 @@
+{
+    debug
+    order filter first
+}
+http://localhost:2015 {
+    reverse_proxy {
+        to https://raw.githubusercontent.com
+        header_up Host "raw.githubusercontent.com"
+    }
+    filter {
+        content_type .*
+        search_pattern "foo"
+        replacement "bar"
+    }
+}
