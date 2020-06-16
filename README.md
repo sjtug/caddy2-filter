@@ -28,6 +28,11 @@ filter {
     # Only process content_type matching this regex
     content_type <regexp pattern>
 }
+
+# If you are using reverse_proxy, add this to its config to ensure
+# reverse_proxy returns uncompressed body:
+
+header_up -Accept-Encoding
 ```
 
 JSON config (under `apps › http › servers › routes › handle`)

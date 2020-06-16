@@ -38,6 +38,6 @@ cleanup
 $XCADDY run -config test/Caddyfile.4&
 pid="$!"
 sleep 7
-curl -v http://localhost:2015/sjtug/caddy2-filter/master/test/test-4.input > output4
+curl -v --compressed http://localhost:2015/sjtug/caddy2-filter/master/test/test-4.input > output4
 diff output4 test/test-4.ref
 cleanup

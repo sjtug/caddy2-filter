@@ -5,6 +5,7 @@
 http://localhost:2015 {
     reverse_proxy {
         to https://raw.githubusercontent.com
+        header_up -Accept-Encoding
         header_up Host "raw.githubusercontent.com"
     }
     filter {
