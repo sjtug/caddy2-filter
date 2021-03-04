@@ -6,38 +6,61 @@ cleanup() {
     pkill caddy || true
 }
 
+
+# $1: path
+# $2: additional flags
+# Echos content
+retry() {
+    local cnt=0
+    local -r THRES=10
+    while ! curl -v $2 "http://localhost:2015${1}" > /tmp/response; do
+        sleep 2
+        cnt=${cnt}+1
+        if [[ "$cnt" -gt "$THRES" ]]; then
+            exit 1
+        fi
+    done
+    cat /tmp/response
+}
+
+echobold() {
+    local -r bold=$(tput bold)
+    local -r normal=$(tput sgr0)
+    echo "${bold}${1}${normal}"
+}
+
 trap cleanup EXIT
 
 readonly XCADDY="go run github.com/caddyserver/xcaddy/cmd/xcaddy"
 
 $XCADDY list-modules
 
+echobold 'test case 1'
 $XCADDY run -config test/Caddyfile.1&
 pid="$!"
-sleep 7
-curl -v http://localhost:2015/ > output1
+retry '/' > output1
 diff output1 test/test-1.ref
 cleanup
 
+echobold 'test case 2'
 $XCADDY run -config test/Caddyfile.2&
 pid="$!"
-sleep 7
-curl -v http://localhost:2015/ > output2
+retry '/' > output2
 diff output2 test/test-2.ref
 cleanup
 
+echobold 'test case 3'
 $XCADDY run -config test/Caddyfile.3&
 pid="$!"
-sleep 7
-curl -v http://localhost:2015/ > output3_1
+retry '/' > output3_1
 diff output3_1 test/test-3-1.ref
-curl -v http://localhost:2015/test > output3_2
+retry '/test' > output3_2
 diff output3_2 test/test-3-2.ref
 cleanup
 
+echobold 'test case 4'
 $XCADDY run -config test/Caddyfile.4&
 pid="$!"
-sleep 7
-curl -v --compressed http://localhost:2015/sjtug/caddy2-filter/master/test/test-4.input > output4
+retry '/sjtug/caddy2-filter/master/test/test-4.input' '--compressed' > output4
 diff output4 test/test-4.ref
 cleanup
