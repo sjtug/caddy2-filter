@@ -22,8 +22,10 @@ func init() {
 	httpcaddyfile.RegisterHandlerDirective("filter", parseCaddyfile)
 }
 
-// Middleware implements an HTTP handler that writes the
-// visitor's IP address to a file or stream.
+// Middleware implements an HTTP handler that replaces response contents based on regex
+//
+// Additional configuration is required in addition to adding a filter{} block. See
+// Github page for instructions.
 type Middleware struct {
 	// Regex to specify which kind of response should we filter
 	ContentType string `json:"content_type"`
@@ -208,7 +210,7 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		case "max_size":
 			val, err := strconv.Atoi(value)
 			if err != nil {
-				d.Err(fmt.Sprintf("max_size error: %s", err.Error()))
+				_ = d.Err(fmt.Sprintf("max_size error: %s", err.Error()))
 			}
 			m.MaxSize = val
 		case "path":
