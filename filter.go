@@ -3,13 +3,14 @@ package filter
 import (
 	"bytes"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strconv"
+
+	"go.uber.org/zap"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -21,6 +22,8 @@ func init() {
 	caddy.RegisterModule(Middleware{})
 	httpcaddyfile.RegisterHandlerDirective("filter", parseCaddyfile)
 }
+
+var paramReplacementPattern = regexp.MustCompile("\\{[a-zA-Z0-9_\\-.]+}")
 
 // Middleware implements an HTTP handler that replaces response contents based on regex
 //
@@ -160,6 +163,42 @@ func (csr *CappedSizeRecorder) WriteHeader(statusCode int) {
 	csr.recorder.WriteHeader(statusCode)
 }
 
+func (m Middleware) replacer(input []byte, repl *caddy.Replacer) []byte {
+	pattern := m.compiledSearchRegex
+	if pattern == nil {
+		return input
+	}
+
+	rawReplacement := []byte(m.Replacement) // convert to byte[] directly after reading?
+	if len(rawReplacement) <= 0 {
+		return []byte{}
+	}
+	groups := pattern.FindSubmatch(input)
+	replacement := paramReplacementPattern.ReplaceAllFunc(rawReplacement, func(input2 []byte) []byte {
+		return m.paramReplacer(input2, groups, repl)
+	})
+	return replacement
+}
+
+func (m Middleware) paramReplacer(input []byte, groups [][]byte, repl *caddy.Replacer) []byte {
+	if len(input) < 3 {
+		return input
+	}
+	name := string(input[1 : len(input)-1])
+	if index, err := strconv.Atoi(name); err == nil {
+		if index >= 0 && index < len(groups) {
+			return groups[index]
+		}
+		return input
+	}
+
+	if value, found := repl.GetString(name); found {
+		return []byte(value)
+	}
+
+	return input
+}
+
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if !m.compiledPathRegex.MatchString(r.URL.Path) {
@@ -173,10 +212,13 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 	csr.FlushHeaders()
 	if m.compiledContentTypeRegex.MatchString(csr.Recorder().Result().Header.Get("Content-Type")) {
 		buf := new(bytes.Buffer)
+		repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
 		if _, err := buf.ReadFrom(csr.Recorder().Result().Body); err != nil {
 			return fmt.Errorf("failed to read from response body: %w", err)
 		}
-		replaced := m.compiledSearchRegex.ReplaceAll(buf.Bytes(), []byte(m.Replacement))
+		replaced := m.compiledSearchRegex.ReplaceAllFunc(buf.Bytes(), func(input []byte) []byte {
+			return m.replacer(input, repl)
+		})
 		if _, err := io.Copy(w, bytes.NewReader(replaced)); err != nil {
 			return fmt.Errorf("error when copying replaced response body: %w", err)
 		}
