@@ -64,3 +64,10 @@ pid="$!"
 retry '/sjtug/caddy2-filter/master/test/test-4.input' '--compressed' > output4
 diff output4 test/test-4.ref
 cleanup
+
+echobold 'test case 5'
+$XCADDY run -config test/Caddyfile.5&
+pid="$!"
+retry '/' > output5
+diff output5 test/test-5.ref
+cleanup
