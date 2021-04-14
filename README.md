@@ -10,6 +10,8 @@ Replace text in HTTP response based on regex. Similar to [http.filter](https://c
 
 Only the listed fields are supported.
 
+The replacement supports capturing groups of search_pattern (e.g. `{1}`) and caddy placeholders (e.g. `{http.request.hostport}`)
+
 
 Caddyfile:
 ```
