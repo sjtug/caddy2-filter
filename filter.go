@@ -3,13 +3,14 @@ package filter
 import (
 	"bytes"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strconv"
+
+	"go.uber.org/zap"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -22,6 +23,8 @@ func init() {
 	httpcaddyfile.RegisterHandlerDirective("filter", parseCaddyfile)
 }
 
+var paramReplacementPattern = regexp.MustCompile("\\{[a-zA-Z0-9_\\-.]+?}")
+
 // Middleware implements an HTTP handler that replaces response contents based on regex
 //
 // Additional configuration is required in addition to adding a filter{} block. See
@@ -31,8 +34,8 @@ type Middleware struct {
 	ContentType string `json:"content_type"`
 	// Regex to specify which pattern to look up
 	SearchPattern string `json:"search_pattern"`
-	// A string specifying the string used to replace matches
-	Replacement string `json:"replacement"`
+	// A byte-array specifying the string used to replace matches
+	Replacement []byte `json:"replacement"`
 
 	MaxSize int    `json:"max_size"`
 	Path    string `json:"path"`
@@ -160,6 +163,50 @@ func (csr *CappedSizeRecorder) WriteHeader(statusCode int) {
 	csr.recorder.WriteHeader(statusCode)
 }
 
+// Performs the replacement of each placeholder in the previously matched response fragment
+// (matched using SearchRegex).
+func (m Middleware) replacer(input []byte, repl *caddy.Replacer) []byte {
+	pattern := m.compiledSearchRegex
+	if pattern == nil {
+		return input
+	}
+
+	if len(m.Replacement) <= 0 {
+		return []byte{}
+	}
+
+	groups := pattern.FindSubmatch(input)
+	replacement := paramReplacementPattern.ReplaceAllFunc(m.Replacement, func(input2 []byte) []byte {
+		return m.paramReplacer(input2, groups, repl) // forward the placeholder replacement
+	})
+	return replacement
+}
+
+// This method supports two types of placeholders:
+//  - {N} where N matches any capturing group of SearchRegex
+//  - {X} where X is any key available in caddy.Replacer
+func (m Middleware) paramReplacer(input []byte, groups [][]byte, repl *caddy.Replacer) []byte {
+	if len(input) < 3 {
+		return input
+	}
+
+	// replace based on a capturing group
+	name := string(input[1 : len(input)-1])
+	if index, err := strconv.Atoi(name); err == nil {
+		if index >= 0 && index < len(groups) {
+			return groups[index]
+		}
+		return input
+	}
+
+	// replace based on caddy's replacer
+	if value, found := repl.GetString(name); found {
+		return []byte(value)
+	}
+
+	return input
+}
+
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if !m.compiledPathRegex.MatchString(r.URL.Path) {
@@ -173,10 +220,13 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 	csr.FlushHeaders()
 	if m.compiledContentTypeRegex.MatchString(csr.Recorder().Result().Header.Get("Content-Type")) {
 		buf := new(bytes.Buffer)
+		repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
 		if _, err := buf.ReadFrom(csr.Recorder().Result().Body); err != nil {
 			return fmt.Errorf("failed to read from response body: %w", err)
 		}
-		replaced := m.compiledSearchRegex.ReplaceAll(buf.Bytes(), []byte(m.Replacement))
+		replaced := m.compiledSearchRegex.ReplaceAllFunc(buf.Bytes(), func(input []byte) []byte {
+			return m.replacer(input, repl) // forward the replacement processing
+		})
 		if _, err := io.Copy(w, bytes.NewReader(replaced)); err != nil {
 			return fmt.Errorf("error when copying replaced response body: %w", err)
 		}
@@ -206,7 +256,7 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		case "search_pattern":
 			m.SearchPattern = value
 		case "replacement":
-			m.Replacement = value
+			m.Replacement = []byte(value)
 		case "max_size":
 			val, err := strconv.Atoi(value)
 			if err != nil {

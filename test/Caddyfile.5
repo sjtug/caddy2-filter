@@ -1,0 +1,13 @@
+{
+    debug
+    auto_https off
+    order filter first
+}
+http://localhost:2015 {
+    filter {
+        content_type .*
+        search_pattern "href=\"/(Root)/"
+        replacement "href=\"https://{http.request.hostport}/{1}2/"
+    }
+    respond "<a href=\"/Root/subpage\">XYZ</a>"
+}
