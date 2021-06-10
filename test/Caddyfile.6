@@ -1,0 +1,15 @@
+{
+    debug
+    auto_https off
+    order filter first
+}
+http://localhost:2015 {
+    filter {
+        content_type .*
+        search_pattern <head>
+        replacement "<head><base href=\"https://{http.request.hostport}/foobar />"
+    }
+
+    root * ./test/www/
+    file_server
+}

@@ -72,3 +72,10 @@ pid="$!"
 retry '/' > output5
 diff output5 test/test-5.ref
 cleanup
+
+echobold 'test case 6'
+$XCADDY run -config test/Caddyfile.6&
+pid="$!"
+retry '/' -i | grep -v Etag | grep -v Last-Modified | grep -v Date > output6
+diff output6 test/test-6.ref
+cleanup

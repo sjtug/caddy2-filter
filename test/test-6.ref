@@ -1,0 +1,14 @@
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Content-Length: 158
+Content-Type: text/html; charset=utf-8
+Server: Caddy
+
+<html>
+    <head><base href="https://localhost:2015/foobar />
+        <title>Testing</title>
+    </head>
+    <body>
+        <h1>test</h1>
+    </body>
+</html>
