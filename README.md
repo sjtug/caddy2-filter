@@ -48,3 +48,13 @@ JSON config (under `apps › http › servers › routes › handle`)
     "content_type": "<regexp>"
 }
 ```
+
+## Alternatives
+As of Jun 2021, https://github.com/caddyserver/replace-response can achieve similar functionalities. This plugin's design differs from that one in the following aspects:
+
+1. This plugin supports placeholders like {http.host}
+2. This plugin allows capping the max size of buffered response
+3. This plugin supports only replacing responses with certain content_types
+
+1. replace-response supports `stream` mode, which features in better performance at the cost of possibilities of omitted replacements
+2. replace-response is a semi-official plugin maintained by the same author of caddy
