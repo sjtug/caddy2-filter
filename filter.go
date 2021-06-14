@@ -217,7 +217,7 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 	if csr.Overflowed() {
 		return nextErr
 	}
-	csr.FlushHeaders()
+
 	if m.compiledContentTypeRegex.MatchString(csr.Recorder().Result().Header.Get("Content-Type")) {
 		buf := new(bytes.Buffer)
 		repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
@@ -227,10 +227,18 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 		replaced := m.compiledSearchRegex.ReplaceAllFunc(buf.Bytes(), func(input []byte) []byte {
 			return m.replacer(input, repl) // forward the replacement processing
 		})
+
+		oldContentLength := csr.Header().Get("Content-Length")
+		if len(oldContentLength) > 0 {
+			csr.Header().Set("Content-Length", strconv.Itoa(len(replaced)))
+		}
+
+		csr.FlushHeaders()
 		if _, err := io.Copy(w, bytes.NewReader(replaced)); err != nil {
 			return fmt.Errorf("error when copying replaced response body: %w", err)
 		}
 	} else {
+		csr.FlushHeaders()
 		if _, err := io.Copy(w, csr.recorder.Body); err != nil {
 			return fmt.Errorf("error when copying response body: %w", err)
 		}
