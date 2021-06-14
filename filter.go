@@ -228,7 +228,11 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 			return m.replacer(input, repl) // forward the replacement processing
 		})
 
-		csr.Header().Set("Content-Length", strconv.Itoa(len(replaced)))
+		oldContentLength := csr.Header().Get("Content-Length")
+		if len(oldContentLength) > 0 {
+			csr.Header().Set("Content-Length", strconv.Itoa(len(replaced)))
+		}
+
 		csr.FlushHeaders()
 		if _, err := io.Copy(w, bytes.NewReader(replaced)); err != nil {
 			return fmt.Errorf("error when copying replaced response body: %w", err)
