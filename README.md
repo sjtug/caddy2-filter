@@ -14,10 +14,11 @@ The replacement supports capturing groups of search_pattern (e.g. `{1}`) and cad
 
 
 Caddyfile:
-```
+
+```caddyfile
 # Add this block in top-level settings:
 {
-	order filter after encode
+    order filter after encode
 }
 
 filter {
@@ -38,7 +39,8 @@ header_up -Accept-Encoding
 ```
 
 JSON config (under `apps › http › servers › routes › handle`)
-```
+
+```json
 {
     "handler": "filter",
     "max_size": <int>,
@@ -50,7 +52,8 @@ JSON config (under `apps › http › servers › routes › handle`)
 ```
 
 ## Alternatives
-As of Jun 2021, https://github.com/caddyserver/replace-response can achieve similar functionalities. This plugin's design differs from that one in the following aspects:
+
+As of Jun 2021, <https://github.com/caddyserver/replace-response> can achieve similar functionalities. This plugin's design differs from that one in the following aspects:
 
 1. This plugin supports placeholders like {http.host}
 2. This plugin allows capping the max size of buffered response
